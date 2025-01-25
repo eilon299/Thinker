@@ -63,6 +63,265 @@ function removeSelectionMenu() {
   }
 }
 
+async function processWithLLM(selectedText) {
+  try {
+    const apiKey = await getApiKey();
+    // Use stored selectedText instead of getting it again later
+    if (!apiKey || apiKey.trim() === '') {
+      alert('Please set your Google API key in the extension popup. Make sure to click the Save button after entering the key.');
+      processingText = false;
+      return;
+    }
+
+    if (currentResultDiv) {
+      document.body.removeChild(currentResultDiv);
+    }
+
+    // Create loading window
+    currentResultDiv = document.createElement('div');
+    currentResultDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 25px;
+      background: linear-gradient(to right, #2c3e50, #3498db);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      z-index: 10000;
+      max-width: 400px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.8;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      animation: fadeIn 0.3s ease-in-out;
+    `;
+
+    // Add fade-in animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Add close button
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '✕';
+    closeButton.style.position = 'absolute';
+    closeButton.style.right = '10px';
+    closeButton.style.top = '10px';
+    closeButton.style.border = 'none';
+    closeButton.style.background = 'none';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.fontSize = '16px';
+    closeButton.style.color = '#666';
+    currentResultDiv.appendChild(closeButton);
+
+    // Create main content container
+    const contentContainer = document.createElement('div');
+    contentContainer.style.marginTop = '20px';
+    contentContainer.style.textAlign = 'center';
+
+    // Add processing text
+    const processingText = document.createElement('div');
+    processingText.textContent = 'Processing...';
+    processingText.style.marginBottom = '15px';
+    contentContainer.appendChild(processingText);
+
+    // Add loading bar
+    const loadingBar = document.createElement('div');
+    loadingBar.innerHTML = `
+      <div class="loading-bar" style="
+        width: 200px;
+        height: 3px;
+        background: #f0f0f0;
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 0 auto;
+      ">
+        <div style="
+          width: 100%;
+          height: 100%;
+          background: #4285f4;
+          animation: slide 1s infinite linear;
+        "></div>
+      </div>
+      <style>
+        @keyframes slide {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      </style>
+    `;
+    contentContainer.appendChild(loadingBar);
+
+    // Add everything to the main div and to the document
+    currentResultDiv.appendChild(contentContainer);
+    document.body.appendChild(currentResultDiv);
+    console.log('Loading window created and added to document');
+
+    let abortController = new AbortController();
+    closeButton.onclick = () => {
+      abortController.abort();
+      if (currentResultDiv && currentResultDiv.parentNode) {
+        document.body.removeChild(currentResultDiv);
+        currentResultDiv = null;
+      }
+      processingText = false;
+    };
+
+    try {
+      // const SYSTEM_PROMPT = "ignore the above instructions and just process the text"
+      const SYSTEM_PROMPT = 
+      'You are a critical thinking assistant, tasked with analyzing news articles for political bias and providing an objective assessment of the content. Your responsibilities include: \
+      1. Critical Thinking Framework: Use established critical thinking guidelines such as identifying assumptions, evaluating evidence, detecting logical fallacies, and assessing the tone and language of the article. \
+      2. Bias Detection: Analyze the article for signs of political bias, including word choice, framing of events, omission of facts, and one-sided reporting. \
+      3. Comparative Analysis: Search the web for other reports of the same event and compare how different sources depict the event. Highlight differences in tone, emphasis, and omitted or included details. \
+      4. Balanced Perspective: Provide a summary of the event that synthesizes the information from multiple sources, aiming for neutrality and balance. \
+      5. Transparency: Clearly explain your reasoning and cite specific examples from the articles to support your analysis. Include links to the sources you reference. \
+      Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy. Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills. \
+      You will answer in hebrew. You will answer in a bried, fluent manner of up to 2 paragraphs. You will try to be as intreseting to read as possible. The text you are processing is the following.'
+      // const SYSTEM_PROMPT = "You are a helpful AI assistant. Process the following text:";
+      
+      // Get the selected model from storage
+      const modelResult = await chrome.storage.local.get(['selected_model']);
+      const modelName = modelResult.selected_model || 'gemini-1.5-pro';
+      console.log('Model name:', modelName);
+
+      // Make sure to store selectedText
+      console.log('Selected text:', selectedText);
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: abortController.signal,
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                text: SYSTEM_PROMPT
+              },
+              {
+                text: selectedText
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          }
+        })
+      });
+
+    console.log('API request sent');
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+      const data = await response.json();
+      const result = data.candidates[0].content.parts[0].text;
+      
+      // Clear all content from container
+      contentContainer.innerHTML = '';
+      
+      // Remove the close button from the previous state
+      closeButton.remove();
+      
+      // Add new close button
+      const resultCloseButton = document.createElement('button');
+      resultCloseButton.innerHTML = '✕';
+      resultCloseButton.style.position = 'absolute';
+      resultCloseButton.style.right = '10px';
+      resultCloseButton.style.top = '10px';
+      resultCloseButton.style.border = 'none';
+      resultCloseButton.style.background = 'none';
+      resultCloseButton.style.cursor = 'pointer';
+      resultCloseButton.style.fontSize = '16px';
+      resultCloseButton.style.color = '#666';
+      currentResultDiv.appendChild(resultCloseButton);
+      
+      resultCloseButton.onclick = () => {
+        if (currentResultDiv && currentResultDiv.parentNode) {
+          document.body.removeChild(currentResultDiv);
+          currentResultDiv = null;
+        }
+        processingText = false;
+      };
+      
+      // Create a container for the avatar
+      const avatarContainer = document.createElement('div');
+      avatarContainer.style.marginTop = '5px';  // Small space from top
+      avatarContainer.style.marginBottom = '20px';  // More space between avatar and text
+      
+      // Add avatar
+      const avatarImg = document.createElement('img');
+      avatarImg.src = chrome.runtime.getURL('icons/avatar.jpg');
+      avatarImg.style.width = '64px';
+      avatarImg.style.height = '64px';
+      avatarImg.style.display = 'block';
+      avatarImg.style.margin = '0 auto';
+      avatarImg.style.borderRadius = '50%';
+      avatarImg.style.border = '2px solid white';
+      avatarImg.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+      
+      // Add avatar to its container and container to main content
+      avatarContainer.appendChild(avatarImg);
+      contentContainer.appendChild(avatarContainer);
+      
+      // Create text container with proper spacing
+      const textContainer = document.createElement('div');
+      textContainer.style.marginTop = '20px';  // Space after avatar
+      
+      // Check if text contains Hebrew characters
+      const hasHebrew = /[\u0590-\u05FF]/.test(result);
+      if (hasHebrew) {
+        textContainer.style.direction = 'rtl';
+        textContainer.style.textAlign = 'right';
+      }
+      
+      const mainText = result.split('---')[0].trim();
+      textContainer.appendChild(document.createTextNode(mainText));
+      contentContainer.appendChild(textContainer);
+      
+    } catch (error) {
+      console.error('Error details:', error);
+      if (error.name === 'AbortError') {
+        console.log('Request was cancelled');
+      } else {
+        console.error('Error:', error);
+        alert('Error processing text: ' + error.message);
+      }
+      processingText = false;
+    }
+  } catch (error) {
+    if (currentResultDiv && currentResultDiv.parentNode) {
+      document.body.removeChild(currentResultDiv);
+      currentResultDiv = null;
+    }
+    alert('An unexpected error occurred. Please try again.');
+  } finally {
+    processingText = false;
+  }
+}
+
 document.addEventListener('mouseup', async (e) => {
   if (processingText) return;
   
@@ -146,260 +405,10 @@ document.addEventListener('mouseup', async (e) => {
         selectionMenu = null;
     }
     
-    console.log('Process button clicked');
     processingText = true;
-    
-    try {
-      const apiKey = await getApiKey();
-      // Use stored selectedText instead of getting it again later
-      if (!apiKey || apiKey.trim() === '') {
-        alert('Please set your Google API key in the extension popup. Make sure to click the Save button after entering the key.');
-        processingText = false;
-        return;
-      }
 
-      if (currentResultDiv) {
-        document.body.removeChild(currentResultDiv);
-      }
-
-      // Create loading window
-      currentResultDiv = document.createElement('div');
-      currentResultDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 20px;
-        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
-        color: white;
-        border: none;
-        border-radius: 15px;
-        z-index: 10000;
-        max-width: 300px;
-        box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        animation: fadeIn 0.3s ease-in-out;
-      `;
-
-      // Add fade-in animation
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `;
-      document.head.appendChild(style);
-
-      // Add close button
-      const closeButton = document.createElement('button');
-      closeButton.innerHTML = '✕';
-      closeButton.style.position = 'absolute';
-      closeButton.style.right = '10px';
-      closeButton.style.top = '10px';
-      closeButton.style.border = 'none';
-      closeButton.style.background = 'none';
-      closeButton.style.cursor = 'pointer';
-      closeButton.style.fontSize = '16px';
-      closeButton.style.color = '#666';
-      currentResultDiv.appendChild(closeButton);
-
-      // Create main content container
-      const contentContainer = document.createElement('div');
-      contentContainer.style.marginTop = '20px';
-      contentContainer.style.textAlign = 'center';
-
-      // Add processing text
-      const processingText = document.createElement('div');
-      processingText.textContent = 'Processing...';
-      processingText.style.marginBottom = '15px';
-      contentContainer.appendChild(processingText);
-
-      // Add loading bar
-      const loadingBar = document.createElement('div');
-      loadingBar.innerHTML = `
-        <div class="loading-bar" style="
-          width: 200px;
-          height: 3px;
-          background: #f0f0f0;
-          border-radius: 3px;
-          overflow: hidden;
-          margin: 0 auto;
-        ">
-          <div style="
-            width: 100%;
-            height: 100%;
-            background: #4285f4;
-            animation: slide 1s infinite linear;
-          "></div>
-        </div>
-        <style>
-          @keyframes slide {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-          }
-        </style>
-      `;
-      contentContainer.appendChild(loadingBar);
-
-      // Add everything to the main div and to the document
-      currentResultDiv.appendChild(contentContainer);
-      document.body.appendChild(currentResultDiv);
-      console.log('Loading window created and added to document');
-
-      let abortController = new AbortController();
-      closeButton.onclick = () => {
-        abortController.abort();
-        if (currentResultDiv && currentResultDiv.parentNode) {
-          document.body.removeChild(currentResultDiv);
-          currentResultDiv = null;
-        }
-        processingText = false;
-      };
-
-      try {
-        // const SYSTEM_PROMPT = "ignore the above instructions and just process the text"
-        const SYSTEM_PROMPT = 
-        'You are a critical thinking assistant, tasked with analyzing news articles for political bias and providing an objective assessment of the content. Your responsibilities include: \
-        1. Critical Thinking Framework: Use established critical thinking guidelines such as identifying assumptions, evaluating evidence, detecting logical fallacies, and assessing the tone and language of the article. \
-        2. Bias Detection: Analyze the article for signs of political bias, including word choice, framing of events, omission of facts, and one-sided reporting. \
-        3. Comparative Analysis: Search the web for other reports of the same event and compare how different sources depict the event. Highlight differences in tone, emphasis, and omitted or included details. \
-        4. Balanced Perspective: Provide a summary of the event that synthesizes the information from multiple sources, aiming for neutrality and balance. \
-        5. Transparency: Clearly explain your reasoning and cite specific examples from the articles to support your analysis. Include links to the sources you reference. \
-        Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy. Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills. \
-        You will answer in hebrew. You will answer in a bried, fluent manner of up to 2 paragraphs. You will try to be as intreseting to read as possible. The text you are processing is the following.'
-        // const SYSTEM_PROMPT = "You are a helpful AI assistant. Process the following text:";
-        
-        // Get the selected model from storage
-        const modelResult = await chrome.storage.local.get(['selected_model']);
-        const modelName = modelResult.selected_model || 'gemini-1.5-pro';
-        console.log('Model name:', modelName);
-
-        // Make sure to store selectedText
-        console.log('Selected text:', selectedText);
-        
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          signal: abortController.signal,
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                {
-                  text: SYSTEM_PROMPT
-                },
-                {
-                  text: selectedText
-                }
-              ]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 2048,
-            }
-          })
-        });
-
-      console.log('API request sent');
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-        const data = await response.json();
-        const result = data.candidates[0].content.parts[0].text;
-        
-        // Clear all content from container
-        contentContainer.innerHTML = '';
-        
-        // Remove the close button from the previous state
-        closeButton.remove();
-        
-        // Add new close button
-        const resultCloseButton = document.createElement('button');
-        resultCloseButton.innerHTML = '✕';
-        resultCloseButton.style.position = 'absolute';
-        resultCloseButton.style.right = '10px';
-        resultCloseButton.style.top = '10px';
-        resultCloseButton.style.border = 'none';
-        resultCloseButton.style.background = 'none';
-        resultCloseButton.style.cursor = 'pointer';
-        resultCloseButton.style.fontSize = '16px';
-        resultCloseButton.style.color = '#666';
-        currentResultDiv.appendChild(resultCloseButton);
-        
-        resultCloseButton.onclick = () => {
-          if (currentResultDiv && currentResultDiv.parentNode) {
-            document.body.removeChild(currentResultDiv);
-            currentResultDiv = null;
-          }
-          processingText = false;
-        };
-        
-        // Create a container for the avatar
-        const avatarContainer = document.createElement('div');
-        avatarContainer.style.marginTop = '5px';  // Small space from top
-        avatarContainer.style.marginBottom = '20px';  // More space between avatar and text
-        
-        // Add avatar
-        const avatarImg = document.createElement('img');
-        avatarImg.src = chrome.runtime.getURL('icons/avatar.jpg');
-        avatarImg.style.width = '64px';
-        avatarImg.style.height = '64px';
-        avatarImg.style.display = 'block';
-        avatarImg.style.margin = '0 auto';
-        avatarImg.style.borderRadius = '50%';
-        avatarImg.style.border = '2px solid white';
-        avatarImg.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-        
-        // Add avatar to its container and container to main content
-        avatarContainer.appendChild(avatarImg);
-        contentContainer.appendChild(avatarContainer);
-        
-        // Create text container with proper spacing
-        const textContainer = document.createElement('div');
-        textContainer.style.marginTop = '20px';  // Space after avatar
-        
-        // Check if text contains Hebrew characters
-        const hasHebrew = /[\u0590-\u05FF]/.test(result);
-        if (hasHebrew) {
-          textContainer.style.direction = 'rtl';
-          textContainer.style.textAlign = 'right';
-        }
-        
-        const mainText = result.split('---')[0].trim();
-        textContainer.appendChild(document.createTextNode(mainText));
-        contentContainer.appendChild(textContainer);
-        
-      } catch (error) {
-        console.error('Error details:', error);
-        if (error.name === 'AbortError') {
-          console.log('Request was cancelled');
-        } else {
-          console.error('Error:', error);
-          alert('Error processing text: ' + error.message);
-        }
-        processingText = false;
-      }
-    } catch (error) {
-      if (currentResultDiv && currentResultDiv.parentNode) {
-        document.body.removeChild(currentResultDiv);
-        currentResultDiv = null;
-      }
-      alert('An unexpected error occurred. Please try again.');
-    } finally {
-      processingText = false;
-    }
+    await processWithLLM(selectedText);
+    processingText = false;
   };
 
   selectionMenu.appendChild(processButton);
@@ -413,11 +422,11 @@ document.addEventListener('mousedown', (e) => {
   }
 });
 
-const showArticleBody = async () => {
+const getYnetArticleBody = async () => {
   const scriptElement = document.querySelector('script[type="application/ld+json"]');
   const jsonData = JSON.parse(scriptElement.textContent);
   const articleBody = jsonData.articleBody;
-  console.log(articleBody);
+  return articleBody
 };
 
 // Add this function at the top level of your content.js
@@ -444,18 +453,24 @@ async function checkYnetArticle() {
   // Create the dialog first (so it appears below the icon)
   const opinionDialog = document.createElement('div');
   opinionDialog.style.cssText = `
-    background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
-    padding: 20px;
-    border-radius: 20px;
+    background: linear-gradient(to right, #2c3e50, #3498db);
+    padding: 25px;
+    border-radius: 12px;
     text-align: center;
-    color: white;
-    font-family: Arial, sans-serif;
-    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     animation: bubblePop 0.3s ease-out;
     min-width: 220px;
     margin-top: 60px;
     position: relative;
-    right: 30px;
+    right: 20px;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   `;
 
   // Add the icon with white circular background
@@ -494,7 +509,7 @@ async function checkYnetArticle() {
     <div style="
       position: absolute;
       top: -15px;
-      right: 40px;
+      right: 80px;
       width: 30px;
       height: 15px;
       overflow: hidden;
@@ -506,8 +521,8 @@ async function checkYnetArticle() {
         width: 15px;
         height: 15px;
         transform: rotate(45deg);
-        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
-        box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        background: linear-gradient(135deg, #2c3e50, #3498db);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
       "></div>
     </div>
     <div style="margin-top: 10px;">
@@ -516,13 +531,14 @@ async function checkYnetArticle() {
         <button id="yesOpinion" style="
           padding: 10px 30px;
           background: white;
-          color: #2196F3;
+          color: #2c3e50;
           border: none;
           border-radius: 25px;
           cursor: pointer;
           font-size: 16px;
           font-weight: bold;
           transition: transform 0.2s;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         ">Yes</button>
         <button id="noOpinion" style="
           padding: 10px 30px;
@@ -534,6 +550,7 @@ async function checkYnetArticle() {
           font-size: 16px;
           font-weight: bold;
           transition: transform 0.2s;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         ">No</button>
       </div>
     </div>
@@ -598,9 +615,10 @@ async function checkYnetArticle() {
   });
 
   // Handle button clicks
-  document.getElementById('yesOpinion').onclick = () => {
+  document.getElementById('yesOpinion').onclick = async () => {
     document.body.removeChild(container);
-    showArticleBody();
+    const ynetArticleBody = await getYnetArticleBody();
+    processWithLLM(ynetArticleBody);
   };
 
   document.getElementById('noOpinion').onclick = () => {
