@@ -86,32 +86,64 @@ document.addEventListener('mouseup', async (e) => {
   selectionMenu.style.left = coords.x + 'px';
   selectionMenu.style.top = coords.y + 'px';
   selectionMenu.style.zIndex = '10000';
-  selectionMenu.style.background = 'white';
-  selectionMenu.style.border = '1px solid black';
+  selectionMenu.style.background = 'none';
+  selectionMenu.style.border = 'none';
   selectionMenu.style.borderRadius = '5px';
   selectionMenu.style.padding = '5px';
-  selectionMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
 
   const processButton = document.createElement('button');
   processButton.textContent = 'Process with Gemini';
-  processButton.style.border = 'none';
-  processButton.style.background = 'none';
-  processButton.style.cursor = 'pointer';
-  processButton.style.color = '#1a73e8';
-  processButton.style.fontSize = '14px';
-  processButton.style.padding = '5px 10px';
+  processButton.style.cssText = `
+    padding: 8px 20px;
+    background: linear-gradient(90deg, #2196F3 0%, #2196F3 50%, #64B5F6 50%, #2196F3 100%);
+    background-size: 200% 100%;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    position: relative;
+    overflow: hidden;
+    animation: shine 2s infinite linear;
+    box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
+    outline: none !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+  `;
+
+  // Add the keyframe animation and button styles to the document
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes shine {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
+    }
+    button:focus {
+      outline: none !important;
+      box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
+    }
+  `;
+  document.head.appendChild(style);
 
   processButton.onclick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Store selected text before removing menu
+    // Store selected text and clear selection
     const selectedText = window.getSelection().toString().trim();
+    window.getSelection().removeAllRanges();
     
-    // Force immediate menu removal
-    if (selectionMenu && selectionMenu.parentNode) {
-      selectionMenu.parentNode.removeChild(selectionMenu);
-      selectionMenu = null;
+    // Force remove menu
+    if (selectionMenu) {
+        document.body.removeChild(selectionMenu);
+        selectionMenu = null;
     }
     
     console.log('Process button clicked');
@@ -132,16 +164,38 @@ document.addEventListener('mouseup', async (e) => {
 
       // Create loading window
       currentResultDiv = document.createElement('div');
-      currentResultDiv.style.position = 'fixed';
-      currentResultDiv.style.top = '20px';
-      currentResultDiv.style.right = '20px';
-      currentResultDiv.style.padding = '20px';
-      currentResultDiv.style.background = 'white';
-      currentResultDiv.style.border = '1px solid black';
-      currentResultDiv.style.borderRadius = '5px';
-      currentResultDiv.style.zIndex = '10000';
-      currentResultDiv.style.maxWidth = '300px';
-      currentResultDiv.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+      currentResultDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 20px;
+        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        animation: fadeIn 0.3s ease-in-out;
+      `;
+
+      // Add fade-in animation
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `;
+      document.head.appendChild(style);
 
       // Add close button
       const closeButton = document.createElement('button');
@@ -219,7 +273,7 @@ document.addEventListener('mouseup', async (e) => {
         4. Balanced Perspective: Provide a summary of the event that synthesizes the information from multiple sources, aiming for neutrality and balance. \
         5. Transparency: Clearly explain your reasoning and cite specific examples from the articles to support your analysis. Include links to the sources you reference. \
         Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy. Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills. \
-        You will answer in hebrew. You will answer in a fluent manner of up to three paragraphs. The text you are processing is the following.'
+        You will answer in hebrew. You will answer in a bried, fluent manner of up to 2 paragraphs. You will try to be as intreseting to read as possible. The text you are processing is the following.'
         // const SYSTEM_PROMPT = "You are a helpful AI assistant. Process the following text:";
         
         // Get the selected model from storage
