@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gemini Text Processor</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 10px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .header img {
+      width: 32px;
+      height: 32px;
+      margin-right: 10px;
+    }
+    .header h3 {
+      margin: 0;
+    }
+    #apiKey {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    #modelSelect {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 5px;
+    }
+    .toggle-switch {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .toggle-switch input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon32.png" alt="Gemini Text Processor">
+    <h3>Gemini Text Processor</h3>
+  </div>
+  <label for="apiKey">API Key:</label>
+  <input type="password" id="apiKey" placeholder="Enter your Google API key">
+  
+  <label for="modelSelect">Model:</label>
+  <select id="modelSelect">
+    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+    <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B</option>
+  </select>
+  <button id="saveKey">Save Settings</button>
+  <div class="toggle-switch">
+    <input type="checkbox" id="powerToggle" checked>
+    <label for="powerToggle">Extension Active</label>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 
