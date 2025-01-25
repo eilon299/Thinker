@@ -412,3 +412,205 @@ document.addEventListener('mousedown', (e) => {
     removeSelectionMenu();
   }
 });
+
+const showArticleBody = async () => {
+  const scriptElement = document.querySelector('script[type="application/ld+json"]');
+  const jsonData = JSON.parse(scriptElement.textContent);
+  const articleBody = jsonData.articleBody;
+  console.log(articleBody);
+};
+
+// Add this function at the top level of your content.js
+async function checkYnetArticle() {
+  const url = window.location.href;
+  if (!url.includes('www.ynet.co.il/news/article/')) {
+    return;
+  }
+
+  // Create container for icon and dialog
+  const container = document.createElement('div');
+  container.style.cssText = `
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  `;
+
+  // Create the dialog first (so it appears below the icon)
+  const opinionDialog = document.createElement('div');
+  opinionDialog.style.cssText = `
+    background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
+    padding: 20px;
+    border-radius: 20px;
+    text-align: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+    animation: bubblePop 0.3s ease-out;
+    min-width: 220px;
+    margin-top: 60px;
+    position: relative;
+    right: 30px;
+  `;
+
+  // Add the icon with white circular background
+  const iconWrapper = document.createElement('div');
+  iconWrapper.style.cssText = `
+    width: 64px;
+    height: 64px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    top: -30px;
+    right: 20px;
+    z-index: 10002;
+    animation: bounceIn 0.5s ease-out;
+    padding: 8px;
+    overflow: hidden;
+  `;
+
+  const icon = document.createElement('img');
+  const iconUrl = chrome.runtime.getURL('icons/icon48.png');
+  icon.src = iconUrl;
+  icon.style.cssText = `
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    background: transparent;
+    mix-blend-mode: multiply;
+  `;
+
+  // Add speech bubble triangle and content
+  opinionDialog.innerHTML = `
+    <div style="
+      position: absolute;
+      top: -15px;
+      right: 40px;
+      width: 30px;
+      height: 15px;
+      overflow: hidden;
+    ">
+      <div style="
+        position: absolute;
+        top: 7.5px;
+        right: -7.5px;
+        width: 15px;
+        height: 15px;
+        transform: rotate(45deg);
+        background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
+        box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+      "></div>
+    </div>
+    <div style="margin-top: 10px;">
+      <h2 style="margin: 0 0 20px 0; font-size: 20px;">Do you want my opinion?</h2>
+      <div style="display: flex; gap: 15px; justify-content: center;">
+        <button id="yesOpinion" style="
+          padding: 10px 30px;
+          background: white;
+          color: #2196F3;
+          border: none;
+          border-radius: 25px;
+          cursor: pointer;
+          font-size: 16px;
+          font-weight: bold;
+          transition: transform 0.2s;
+        ">Yes</button>
+        <button id="noOpinion" style="
+          padding: 10px 30px;
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          border: none;
+          border-radius: 25px;
+          cursor: pointer;
+          font-size: 16px;
+          font-weight: bold;
+          transition: transform 0.2s;
+        ">No</button>
+      </div>
+    </div>
+  `;
+
+  // Add the animations
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes bubblePop {
+      0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(10px);
+      }
+      50% {
+        transform: scale(1.05) translateY(-5px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    @keyframes bounceIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.3);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+      70% {
+        transform: scale(0.9);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Assemble the container
+  iconWrapper.appendChild(icon);
+  container.appendChild(opinionDialog);
+  container.appendChild(iconWrapper);
+  
+  // Add to document and show
+  document.body.appendChild(container);
+  // Small delay to ensure smooth animation
+  setTimeout(() => {
+    container.style.opacity = '1';
+  }, 100);
+
+  // Add hover effect
+  const buttons = opinionDialog.querySelectorAll('button');
+  buttons.forEach(button => {
+    button.addEventListener('mouseover', () => {
+      button.style.transform = 'scale(1.05)';
+    });
+    button.addEventListener('mouseout', () => {
+      button.style.transform = 'scale(1)';
+    });
+  });
+
+  // Handle button clicks
+  document.getElementById('yesOpinion').onclick = () => {
+    document.body.removeChild(container);
+    showArticleBody();
+  };
+
+  document.getElementById('noOpinion').onclick = () => {
+    document.body.removeChild(container);
+  };
+}
+
+// Ensure the page is fully loaded before checking
+if (document.readyState === 'complete') {
+  checkYnetArticle();
+} else {
+  window.addEventListener('load', checkYnetArticle);
+}
