@@ -568,6 +568,10 @@ const getChannel14ArticleBody = async () => {
 // Add this function at the top level of your content.js
 
 async function checkNewsArticle() {
+
+  const isEnabled = await isExtensionEnabled();
+  if (!isEnabled) return;
+
   const url = window.location.href;
   if (!url.includes('www.ynet.co.il/news/article/') && !url.includes('www.mako.co.il/news') && !url.includes('www.now14.co.il/article')) {
     return;
