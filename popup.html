@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Gemini Text Processor</title>
   <style>
@@ -7,36 +8,44 @@
       width: 300px;
       padding: 10px;
     }
+
     .header {
       display: flex;
       align-items: center;
       margin-bottom: 15px;
     }
+
     .header img {
       width: 32px;
       height: 32px;
       margin-right: 10px;
     }
+
     .header h3 {
       margin: 0;
     }
+
     #apiKey {
       width: 100%;
       margin-bottom: 10px;
     }
+
     #modelSelect {
       width: 100%;
       margin-bottom: 10px;
       padding: 5px;
     }
+
     .toggle-switch {
       margin-top: 10px;
       display: flex;
       align-items: center;
     }
+
     .toggle-switch input[type="checkbox"] {
       margin-right: 10px;
     }
+
     label {
       display: block;
       margin-bottom: 5px;
@@ -44,6 +53,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="header">
     <img src="icons/icon32.png" alt="Gemini Text Processor">
@@ -51,7 +61,7 @@
   </div>
   <label for="apiKey">API Key:</label>
   <input type="password" id="apiKey" placeholder="Enter your Google API key">
-  
+
   <label for="modelSelect">Model:</label>
   <select id="modelSelect">
     <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
@@ -65,4 +75,5 @@
   </div>
   <script src="popup.js"></script>
 </body>
-</html> 
+
+</html>
