@@ -1,15 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "Gemini Text Processor",
+  "name": "Critical Thinking Assistant",
   "version": "1.0",
-  "description": "Process selected text using Google's Gemini AI",
+  "description": "Get the full story from the news articles you read",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["activeTab", "storage"],
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
@@ -21,12 +24,24 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "js/websites_integration.js",
+        "js/content.js"
+      ]
     }
   ],
-  "web_accessible_resources": [{
-    "resources": ["icons/*"],
-    "matches": ["<all_urls>"]
-  }]
-} 
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "js/*",
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,11 @@
 let processingText = false;
 let currentResultDiv = null;
 let selectionMenu = null;
+let popupDialog = null;
+
+
+// Get the integration object
+const { websites, getArticleBodyForUrl, isSupportedNewsSite } = window.WebsitesIntegration;
 
 async function isExtensionEnabled() {
   const result = await chrome.storage.local.get(['extension_enabled']);
@@ -126,8 +131,8 @@ async function processWithLLM(selectedText) {
     closeButton.style.border = 'none';
     closeButton.style.background = 'none';
     closeButton.style.cursor = 'pointer';
-    closeButton.style.fontSize = '16px';
-    closeButton.style.color = '#666';
+    closeButton.style.fontSize = '18px';
+    closeButton.style.color = 'rgb(180, 205, 244)';
     currentResultDiv.appendChild(closeButton);
 
     // Create main content container
@@ -192,8 +197,9 @@ async function processWithLLM(selectedText) {
       3. Comparative Analysis: Search the web for other reports of the same event and compare how different sources depict the event. Highlight differences in tone, emphasis, and omitted or included details. \
       4. Balanced Perspective: Provide a summary of the event that synthesizes the information from multiple sources, aiming for neutrality and balance. \
       5. Transparency: Clearly explain your reasoning and cite specific examples from the articles to support your analysis. Include links to the sources you reference. \
-      Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy. Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills. \
+      If you cannot find a clear bias state it. Do not make up a bias. Do not Tell the user to go and search other sources. Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy. Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills. \
       You will answer in hebrew. You will answer in a bried, fluent manner of up to 2 paragraphs. You will try to be as intreseting to read as possible. The text you are processing is the following.'
+
       // const SYSTEM_PROMPT = "You are a helpful AI assistant. Process the following text:";
 
       // Get the selected model from storage
@@ -254,8 +260,8 @@ async function processWithLLM(selectedText) {
       resultCloseButton.style.border = 'none';
       resultCloseButton.style.background = 'none';
       resultCloseButton.style.cursor = 'pointer';
-      resultCloseButton.style.fontSize = '16px';
-      resultCloseButton.style.color = '#666';
+      closeButton.style.fontSize = '18px';
+      closeButton.style.color = 'rgb(180, 205, 244)';
       currentResultDiv.appendChild(resultCloseButton);
 
       resultCloseButton.onclick = () => {
@@ -355,7 +361,7 @@ async function processWithLLM(selectedText) {
           maskGradient = 'linear-gradient(to bottom, black 0%, black 95%, transparent 100%)';
         } else if (isAtBottom) {
           // Only top fade when at bottom
-          maskGradient = 'linear-gradient(to bottom, transparent 0%, black 5%, black 100%)';
+          maskGradient = 'linear-gradient(to bottom, transparent 0%, black 0%, black 100%)';
         } else {
           // Both fades when in middle
           maskGradient = 'linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)';
@@ -423,7 +429,7 @@ async function processWithLLM(selectedText) {
       if (error.name === 'AbortError') {
         console.log('Request was cancelled');
       } else {
-        console.error('Error:', error);
+        console.error('Thinker Error:', error);
         alert('Error processing text: ' + error.message);
       }
       processingText = false;
@@ -433,152 +439,27 @@ async function processWithLLM(selectedText) {
       document.body.removeChild(currentResultDiv);
       currentResultDiv = null;
     }
+    console.error('Thinker Error:', error);
     alert('An unexpected error occurred. Please try again.');
   } finally {
     processingText = false;
   }
 }
 
-document.addEventListener('mouseup', async (e) => {
-  if (processingText) return;
-
-  const selectedText = window.getSelection().toString().trim();
-  if (!selectedText || selectedText.length === 0) {
-    removeSelectionMenu();
-    return;
-  }
-
-  const isEnabled = await isExtensionEnabled();
-  if (!isEnabled) return;
-
-  if (selectionMenu) removeSelectionMenu();
-
-  const coords = getSelectionCoordinates();
-  if (!coords) return;
-
-  // Create selection menu
-  selectionMenu = document.createElement('div');
-  selectionMenu.style.position = 'absolute';
-  selectionMenu.style.left = coords.x + 'px';
-  selectionMenu.style.top = coords.y + 'px';
-  selectionMenu.style.zIndex = '10000';
-  selectionMenu.style.background = 'none';
-  selectionMenu.style.border = 'none';
-  selectionMenu.style.borderRadius = '5px';
-  selectionMenu.style.padding = '5px';
-
-  const processButton = document.createElement('button');
-  processButton.textContent = 'Process with Gemini';
-  processButton.style.cssText = `
-    padding: 8px 20px;
-    background: linear-gradient(90deg, #2196F3 0%, #2196F3 50%, #64B5F6 50%, #2196F3 100%);
-    background-size: 200% 100%;
-    color: white;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    position: relative;
-    overflow: hidden;
-    animation: shine 2s infinite linear;
-    box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
-    outline: none !important;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    -webkit-tap-highlight-color: transparent;
-  `;
-
-  // Add the keyframe animation and button styles to the document
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes shine {
-      0% {
-        background-position: 200% 0;
-      }
-      100% {
-        background-position: -200% 0;
-      }
-    }
-    button:focus {
-      outline: none !important;
-      box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
-    }
-  `;
-  document.head.appendChild(style);
-
-  processButton.onclick = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Store selected text and clear selection
-    const selectedText = window.getSelection().toString().trim();
-    window.getSelection().removeAllRanges();
-
-    // Force remove menu
-    if (selectionMenu) {
-      document.body.removeChild(selectionMenu);
-      selectionMenu = null;
-    }
-
-    processingText = true;
-
-    await processWithLLM(selectedText);
-    processingText = false;
-  };
-
-  selectionMenu.appendChild(processButton);
-  document.body.appendChild(selectionMenu);
-});
-
-// Remove menu when clicking outside
-document.addEventListener('mousedown', (e) => {
-  if (selectionMenu && !selectionMenu.contains(e.target)) {
-    removeSelectionMenu();
-  }
-});
-
-const getYnetArticleBody = async () => {
-  const scriptElement = document.querySelector('script[type="application/ld+json"]');
-  const jsonData = JSON.parse(scriptElement.textContent);
-  const articleBody = jsonData.articleBody;
-  return articleBody
-};
-
-const getN12ArticleBody = async () => {
-  const articleBody = document.querySelector('section.article-body');
-  const paragraphElements = articleBody.querySelectorAll('p');
-  const paragraphElementsArray = Array.from(paragraphElements);
-  const paragraphsToProcess = paragraphElementsArray.slice(0, -1);
-  const paragraphTexts = paragraphsToProcess.map(p => p.textContent.trim());
-  const jointText = paragraphTexts.join(' ');
-  return jointText;
-};
-
-const getChannel14ArticleBody = async () => {
-  const articleContent = document.querySelector('.ArticleContent_articleContent__AdZEJ.false');
-  let joinedText = "";
-  const paragraphs = articleContent.querySelectorAll('p');
-  const paragraphTexts = Array.from(paragraphs).map(p => p.textContent.trim());
-  joinedText = paragraphTexts.join(' ');
-  return joinedText;
-};
-
-// Add this function at the top level of your content.js
-
 async function checkNewsArticle() {
-
   const isEnabled = await isExtensionEnabled();
   if (!isEnabled) return;
 
   const url = window.location.href;
-  if (!url.includes('www.ynet.co.il/news/article/') && !url.includes('www.mako.co.il/news') && !url.includes('www.now14.co.il/article')) {
+  if (!isSupportedNewsSite(url)) {
     return;
   }
 
+
   // Create container for icon and dialog
   const container = document.createElement('div');
+  // Save the container to the popupDialog variable for global use
+  popupDialog = container;
   container.style.cssText = `
     position: fixed;
     top: 15px;
@@ -806,18 +687,13 @@ async function checkNewsArticle() {
   // Handle button clicks
   document.getElementById('yesOpinion').onclick = async () => {
     document.body.removeChild(container);
-    if (url.includes('www.ynet.co.il/news/article/')) {
-      const ynetArticleBody = await getYnetArticleBody();
-      processWithLLM(ynetArticleBody);
-    } else if (url.includes('www.mako.co.il/news')) {
-      const n12ArticleBody = await getN12ArticleBody();
-      processWithLLM(n12ArticleBody);
-    } else if (url.includes('www.now14.co.il/article')) {
-      const channel14ArticleBody = await getChannel14ArticleBody();
-      processWithLLM(channel14ArticleBody);
-    } else {
-      alert('This is not a news article');
+
+    let articleBody = await getArticleBodyForUrl(url);
+    if (!articleBody) {
+      alert('Problem with getting the article body');
+      return;
     }
+    processWithLLM(articleBody);
   };
 
 
@@ -826,7 +702,66 @@ async function checkNewsArticle() {
   };
 }
 
-// Ensure the page is fully loaded before checking
+// Function to close any open dialog
+function closeOpenDialog() {
+  if (popupDialog && popupDialog.parentNode) {
+    popupDialog.parentNode.removeChild(popupDialog);
+  }
+}
+
+function closeCurrentResultDiv() {
+  if (currentResultDiv && currentResultDiv.parentNode) {
+    currentResultDiv.parentNode.removeChild(currentResultDiv);
+  }
+}
+
+// Function to handle URL changes
+function handleUrlChange() {
+  const currentUrl = window.location.href;
+  if (currentUrl !== lastUrl) {
+    lastUrl = currentUrl;
+    closeOpenDialog();
+    closeCurrentResultDiv();
+    setTimeout(checkNewsArticle, 1000); // Small delay to ensure content has updated
+  }
+}
+
+// Track URL changes
+let lastUrl = window.location.href;
+
+// Create URL change observer
+const urlObserver = new MutationObserver(() => {
+  handleUrlChange();
+});
+
+// Start observing the document with the configured parameters
+urlObserver.observe(document, {
+  subtree: true,
+  childList: true,
+  characterData: true,
+  attributes: true
+});
+
+// Handle traditional navigation events
+window.addEventListener('popstate', handleUrlChange);
+window.addEventListener('hashchange', handleUrlChange);
+window.addEventListener('pushState', handleUrlChange);
+window.addEventListener('replaceState', handleUrlChange);
+
+// Monitor History API changes
+const originalPushState = history.pushState;
+history.pushState = function () {
+  originalPushState.apply(this, arguments);
+  handleUrlChange();
+};
+
+const originalReplaceState = history.replaceState;
+history.replaceState = function () {
+  originalReplaceState.apply(this, arguments);
+  handleUrlChange();
+};
+
+// Initial check
 if (document.readyState === 'complete') {
   checkNewsArticle();
 } else {

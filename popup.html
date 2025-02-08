@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <title>Gemini Text Processor</title>
+  <title>Critical Thinking Assistant</title>
   <style>
     body {
       width: 300px;
@@ -103,16 +103,18 @@
 
 <body>
   <div class="header">
-    <img src="icons/icon32.png" alt="Gemini Text Processor">
-    <h3>Gemini Text Processor</h3>
+    <img src="icons/icon32.png" alt="Critical Thinking Assistant">
+    <h3>Critical Thinking Assistant</h3>
   </div>
   <label for="apiKey">API Key:</label>
   <input type="password" id="apiKey" placeholder="Enter your Google API key">
 
+
   <label for="modelSelect">Model:</label>
   <select id="modelSelect">
-    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
     <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+    <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
     <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B</option>
   </select>
   <button id="saveKey">Save Settings</button>
