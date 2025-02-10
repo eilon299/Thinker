@@ -2,10 +2,20 @@ let processingText = false;
 let currentResultDiv = null;
 let selectionMenu = null;
 let popupDialog = null;
+let thinkerActivated = false; // Flag to track if thinker is activated and avoid double opening
 
 
 // Get the integration object
 const { websites, getArticleBodyForUrl, isSupportedNewsSite } = window.WebsitesIntegration;
+
+// Add this near the top of the file with other message listeners
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "activateThinker") {
+    thinkerActivated = true;
+    closeOpenDialog(); // Close any existing dialog first
+    processArticle();
+  }
+});
 
 async function isExtensionEnabled() {
   const result = await chrome.storage.local.get(['extension_enabled']);
@@ -15,57 +25,6 @@ async function isExtensionEnabled() {
 async function getApiKey() {
   const result = await chrome.storage.local.get(['gemini_api_key']);
   return result.gemini_api_key;
-}
-
-// Function to get cursor position with viewport boundary checking
-function getSelectionCoordinates() {
-  const selection = window.getSelection();
-  if (selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // Get menu dimensions (approximate if not yet created)
-    const menuWidth = 150; // Approximate width of the menu
-    const menuHeight = 40; // Approximate height of the menu
-
-    // Default position (right of selection)
-    let x = rect.right + window.scrollX + 10;
-    let y = rect.top + window.scrollY;
-
-    // Check right boundary
-    if (x + menuWidth > viewportWidth + window.scrollX) {
-      // If too close to right edge, place it to the left of the selection
-      x = rect.left + window.scrollX - menuWidth - 10;
-
-      // If still outside viewport (too close to left edge), place it below the selection
-      if (x < window.scrollX) {
-        x = rect.left + window.scrollX;
-        y = rect.bottom + window.scrollY + 10;
-      }
-    }
-
-    // Check bottom boundary
-    if (y + menuHeight > viewportHeight + window.scrollY) {
-      // If too close to bottom edge, place it above the selection
-      y = rect.top + window.scrollY - menuHeight - 10;
-    }
-
-    // Final check to ensure coordinates are not negative
-    x = Math.max(window.scrollX, x);
-    y = Math.max(window.scrollY, y);
-
-    return { x, y };
-  }
-  return null;
-}
-
-// Function to remove selection menu
-function removeSelectionMenu() {
-  if (selectionMenu && selectionMenu.parentNode) {
-    selectionMenu.parentNode.removeChild(selectionMenu);
-  }
 }
 
 async function processWithLLM(selectedText) {
@@ -146,6 +105,35 @@ async function processWithLLM(selectedText) {
     processingText.style.marginBottom = '15px';
     contentContainer.appendChild(processingText);
 
+    // Add YouTube video
+    const videoContainer = document.createElement('div');
+    videoContainer.style.cssText = `
+        margin: 10px 0;
+        position: relative;
+        padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+        height: 0;
+        overflow: hidden;
+        max-width: 350px;
+        margin: 0 auto;
+    `;
+
+    const videoIframe = document.createElement('iframe');
+    videoIframe.src = 'https://www.youtube.com/embed/m9coOXt5nuw?autoplay=1&controls=0&showinfo=0&showtitle=0&showbyline=0&showbranding=0';
+    videoIframe.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 8px;
+    `;
+    videoIframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    videoIframe.allowFullscreen = true;
+    videoIframe.autoplay = true;
+    videoContainer.appendChild(videoIframe);
+    contentContainer.appendChild(videoContainer);
+
     // Add loading bar
     const loadingBar = document.createElement('div');
     loadingBar.innerHTML = `
@@ -155,7 +143,7 @@ async function processWithLLM(selectedText) {
         background: #f0f0f0;
         border-radius: 3px;
         overflow: hidden;
-        margin: 0 auto;
+        margin: 10px auto;
       ">
         <div style="
           width: 100%;
@@ -191,14 +179,15 @@ async function processWithLLM(selectedText) {
     try {
       // const SYSTEM_PROMPT = "ignore the above instructions and just process the text"
       const SYSTEM_PROMPT =
-        'You are a critical thinking assistant, tasked with analyzing news articles for political bias and providing an objective assessment of the content. Your responsibilities include: \
+        'You are an expert in Israeli politics and geo-politics. You have an understanding of the history of the region and the current events. You know the different stand points of the different parties and politicians and other interests holders. Using all those, you are a critical thinking assistant, tasked with analyzing news articles for political bias and providing an objective assessment of the content. Your responsibilities include: \
       1. Critical Thinking Framework: Use established critical thinking guidelines such as identifying assumptions, evaluating evidence, detecting logical fallacies, and assessing the tone and language of the article. \
-      2. Bias Detection: Analyze the article for signs of political bias, including word choice, framing of events, omission of facts, and one-sided reporting. \
-      3. Comparative Analysis: Search the web for other reports of the same event and compare how different sources depict the event. Highlight differences in tone, emphasis, and omitted or included details. \
-      4. Balanced Perspective: Provide a summary of the event that synthesizes the information from multiple sources, aiming for neutrality and balance. \
-      5. Transparency: Clearly explain your reasoning and cite specific examples from the articles to support your analysis. Include links to the sources you reference. \
-      If you cannot find a clear bias state it. Do not make up a bias. Do not Tell the user to go and search other sources. Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy. Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills. \
-      You will answer in hebrew. You will answer in a bried, fluent manner of up to 2 paragraphs. You will try to be as intreseting to read as possible. The text you are processing is the following.'
+      2. Bias Detection: Analyze the article for signs of political bias, including word choice, framing of events, omission of facts, and one - sided reporting.\
+      3. Comparative Analysis: Search the web for other reports of the same event and compare how different sources depict the event.Highlight differences in tone, emphasis, and omitted or included details.\
+      4. Balanced Perspective: Provide a summary of the event that synthesizes the information from multiple sources, aiming for neutrality and balance.\
+      5. Transparency: Clearly explain your reasoning and cite specific examples from the articles to support your analysis.Include links to the sources you reference.\
+      If you cannot find a clear bias state it at the beginning of your answer.Do not make up a bias.Do not Tell the user to go and search other sources.Always remain neutral, avoid injecting personal opinions, and prioritize factual accuracy.Your goal is to help users develop a deeper understanding of media bias and improve their critical thinking skills.\
+      You will answer in hebrew.You will answer in a brief, fluent manner of up to 2 paragraphs.You will try to be as intreseting to read as possible.The text you are processing is the following:'
+
 
       // const SYSTEM_PROMPT = "You are a helpful AI assistant. Process the following text:";
 
@@ -443,10 +432,28 @@ async function processWithLLM(selectedText) {
     alert('An unexpected error occurred. Please try again.');
   } finally {
     processingText = false;
+    thinkerActivated = false; // Reset the flag when processing is complete
   }
 }
 
-async function checkNewsArticle() {
+async function processArticle() {
+  const url = window.location.href;
+  if (!isSupportedNewsSite(url)) {
+    alert('This is not a supported news site or the article is not supported. Please go to a supported news site and try again.');
+    return;
+  }
+
+  let articleBody = await getArticleBodyForUrl(url);
+  if (!articleBody) {
+    alert('Problem with getting the article body');
+    return;
+  }
+  processWithLLM(articleBody);
+}
+
+async function popDialogAndProcess() {
+  if (thinkerActivated) return;
+
   const isEnabled = await isExtensionEnabled();
   if (!isEnabled) return;
 
@@ -722,7 +729,7 @@ function handleUrlChange() {
     lastUrl = currentUrl;
     closeOpenDialog();
     closeCurrentResultDiv();
-    setTimeout(checkNewsArticle, 1000); // Small delay to ensure content has updated
+    setTimeout(popDialogAndProcess, 1000); // Small delay to ensure content has updated
   }
 }
 
@@ -763,7 +770,7 @@ history.replaceState = function () {
 
 // Initial check
 if (document.readyState === 'complete') {
-  checkNewsArticle();
+  popDialogAndProcess();
 } else {
-  window.addEventListener('load', checkNewsArticle);
+  window.addEventListener('load', popDialogAndProcess);
 }

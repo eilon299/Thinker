@@ -4,6 +4,7 @@ async function getArticleBody(name_of_article_element) {
         const paragraphs = articleBody.querySelectorAll('p');
         return Array.from(paragraphs).map(p => p.textContent.trim()).join(' ');
     } catch (error) {
+        console.error('Thinker Error:', error);
         return null;
     }
 }
@@ -22,9 +23,11 @@ window.WebsitesIntegration = {
                     const jsonData = JSON.parse(scriptElement.textContent);
                     return jsonData.articleBody;
                 } catch (error) {
+                    console.error('Thinker Error:', error);
                     return null;
                 }
             }
+
 
         },
         {
@@ -79,7 +82,11 @@ window.WebsitesIntegration = {
             getArticleBody: async function () {
                 try {
                     const container = document.querySelector('.textEditor_container.readOnly');
-                    if (!container) return null;
+                    if (!container) {
+                        console.error('Thinker Error:', ".textEditor_container.readOnly element not found");
+                        return null;
+                    }
+
 
                     const getText = el => {
                         if (!el) return '';
@@ -92,6 +99,7 @@ window.WebsitesIntegration = {
                         .join(' ')
                         .trim();
                 } catch (error) {
+                    console.error('Thinker Error:', error);
                     return null;
                 }
             }
@@ -114,6 +122,7 @@ window.WebsitesIntegration = {
                     });
                     return textSnippets.join(' ');
                 } catch (error) {
+                    console.error('Thinker Error:', error);
                     return null;
                 }
 

@@ -6,13 +6,16 @@
   <style>
     body {
       width: 300px;
-      padding: 10px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      border-radius: 12px;
     }
 
     .header {
       display: flex;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 20px;
     }
 
     .header img {
@@ -23,17 +26,43 @@
 
     .header h3 {
       margin: 0;
+      color: #10375f;
     }
 
-    #apiKey {
-      width: 100%;
-      margin-bottom: 10px;
-    }
-
+    #apiKey,
     #modelSelect {
       width: 100%;
-      margin-bottom: 10px;
-      padding: 5px;
+      margin-bottom: 15px;
+      padding: 8px 12px;
+      border: 1px solid #dde1e6;
+      border-radius: 6px;
+      background-color: white;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+
+    #apiKey:focus,
+    #modelSelect:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    }
+
+    #saveKey {
+      background: #10375f;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+
+    #saveKey:hover {
+      background: #164875;
+      transform: translateY(-1px);
     }
 
     .toggle-switch {
@@ -94,9 +123,31 @@
     }
 
     label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
+      color: #10375f;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .button-container {
+      margin-top: 15px;
+    }
+
+    .activate-button {
+      background: linear-gradient(135deg, #10375f, #3498db);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      width: 100%;
+      transition: all 0.3s ease;
+    }
+
+    .activate-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 55, 95, 0.2);
     }
   </style>
 </head>
@@ -123,7 +174,13 @@
       <input type="checkbox" id="powerToggle">
       <span class="slider"></span>
     </label>
-    <label for="powerToggle">Extension Active</label>
+    <label for="powerToggle">Activated Automatically</label>
+  </div>
+  <div class="button-container">
+    <button id="activateBtn" class="activate-button">
+
+      Start Critical Thinking
+    </button>
   </div>
   <script src="popup.js"></script>
 </body>

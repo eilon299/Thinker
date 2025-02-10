@@ -25,4 +25,10 @@ document.getElementById('saveKey').addEventListener('click', async () => {
 // Handle power toggle
 document.getElementById('powerToggle').addEventListener('change', (e) => {
   chrome.storage.local.set({ 'extension_enabled': e.target.checked });
+});
+
+document.getElementById('activateBtn').addEventListener('click', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  chrome.tabs.sendMessage(tab.id, { action: "activateThinker" });
+  window.close(); // Close the extension popup
 }); 
